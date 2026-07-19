@@ -42,11 +42,12 @@ async function storeImage(file) {
 /*
  * Deletion propagation. The client owns the notebook state, so the server
  * learns an image was deleted by diffing references on save. Every upload is
- * indexed (url -> fileId); on each save, an indexed image that is no longer
- * referenced anywhere gets an `unreferencedSince` stamp, and once it stays
- * unreferenced past GRACE_MS it is deleted from ImageKit. The grace window
- * keeps ↩ Undo (which can restore a deleted block) from pointing at a dead
- * image, and also cleans up scans/uploads that were never saved into a note.
+ * indexed (url -> fileId). An image that was referenced on the previous save
+ * and is now gone (its topic/chapter/subject was deleted) is removed from
+ * ImageKit immediately — ↩ Undo of such a deletion restores the block but not
+ * the image file. Fresh uploads that were never saved into a note keep an
+ * `unreferencedSince` stamp and are only cleaned up after GRACE_MS, so an
+ * upload in flight isn't deleted before its save lands.
  */
 const INDEX_ID = 'image-index';
 const GRACE_MS = 60 * 60 * 1000; // 1 hour
@@ -70,6 +71,7 @@ function extractImageUrls(value) {
 }
 
 // Fire-and-forget after each state save.
+let gcTimer = null;
 async function collectGarbage(state) {
   const ik = getImageKit();
   if (!ik) return;
@@ -79,7 +81,6 @@ async function collectGarbage(state) {
     if (!entries.length) return;
 
     const referenced = extractImageUrls(state);
-    const nowIso = new Date().toISOString();
     const cutoff = Date.now() - GRACE_MS;
     const keep = [];
 
@@ -87,15 +88,18 @@ async function collectGarbage(state) {
       if (referenced.has(entry.url)) {
         keep.push({ ...entry, unreferencedSince: null }); // in use
       } else {
-        const since = entry.unreferencedSince || nowIso;
-        if (new Date(since).getTime() <= cutoff) {
+        const since = entry.unreferencedSince;
+        // No stamp means the image was referenced on the last save — its
+        // note was just deleted, so remove the file right away. Stamped
+        // entries are unsaved uploads still inside their grace window.
+        if (!since || new Date(since).getTime() <= cutoff) {
           try {
             await ik.deleteFile(entry.fileId);
           } catch (err) {
             const status = err.$ResponseMetadata?.statusCode || err.statusCode;
             if (status !== 404) {
               console.error(`ImageKit delete failed for ${entry.fileId}:`, err.message);
-              keep.push({ ...entry, unreferencedSince: since }); // retry on a later save
+              keep.push({ ...entry, unreferencedSince: since || null }); // retry on a later save
             }
           }
         } else {
@@ -109,6 +113,19 @@ async function collectGarbage(state) {
       { $set: { kind: 'image-index', entries: keep } },
       { upsert: true }
     );
+
+    // Unsaved uploads still in their grace window: re-run once the earliest
+    // window lapses, so they get cleaned up even if no further save arrives.
+    // A newer save's GC pass supersedes this with fresher state.
+    const pending = keep
+      .filter((e) => e.unreferencedSince)
+      .map((e) => new Date(e.unreferencedSince).getTime() + GRACE_MS);
+    clearTimeout(gcTimer);
+    if (pending.length) {
+      const delay = Math.max(Math.min(...pending) - Date.now(), 0) + 1000;
+      gcTimer = setTimeout(() => collectGarbage(state), delay);
+      gcTimer.unref?.();
+    }
   } catch (err) {
     console.error('Image garbage collection failed:', err.message);
   }

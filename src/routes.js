@@ -66,7 +66,7 @@ router.put(
     res.json({ ok: true, savedAt: new Date().toISOString() });
 
     // Fire-and-forget: delete ImageKit files no longer referenced anywhere in
-    // the saved state (after the undo-grace window).
+    // the saved state (unsaved fresh uploads get a grace window).
     imagekit.collectGarbage({ subjects, important });
   })
 );
