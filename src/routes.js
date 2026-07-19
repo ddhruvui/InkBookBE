@@ -1,6 +1,7 @@
 const express = require('express');
 const InkDoc = require('./model');
 const { upload } = require('./upload');
+const imagekit = require('./imagekit');
 const aiRoutes = require('./ai');
 
 const router = express.Router();
@@ -63,12 +64,23 @@ router.put(
 
     await InkDoc.bulkWrite(ops, { ordered: true });
     res.json({ ok: true, savedAt: new Date().toISOString() });
+
+    // Fire-and-forget: delete ImageKit files no longer referenced anywhere in
+    // the saved state (after the undo-grace window).
+    imagekit.collectGarbage({ subjects, important });
   })
 );
 
-router.post('/uploads', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file provided (field name: file)' });
-  res.status(201).json({ url: `/uploads/${req.file.filename}` });
-});
+router.post(
+  '/uploads',
+  upload.single('file'),
+  wrap(async (req, res) => {
+    if (!imagekit.isConfigured()) return res.status(503).json(imagekit.NOT_CONFIGURED);
+    if (!req.file) return res.status(400).json({ error: 'No file provided (field name: file)' });
+    const stored = await imagekit.storeImage(req.file);
+    await imagekit.registerUpload(stored);
+    res.status(201).json({ url: stored.url });
+  })
+);
 
 module.exports = router;

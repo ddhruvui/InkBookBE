@@ -1,7 +1,6 @@
-const fs = require('fs/promises');
-const path = require('path');
 const express = require('express');
 const { upload } = require('./upload');
+const imagekit = require('./imagekit');
 
 const router = express.Router();
 
@@ -71,14 +70,22 @@ router.post(
     if (!ai) return res.status(503).json(NOT_CONFIGURED);
     if (!req.file) return res.status(400).json({ error: 'No image provided (field name: file)' });
 
-    const data = await fs.readFile(path.join(req.file.destination, req.file.filename));
+    // Store the original on ImageKit (if configured) so the scan block can
+    // show it; conversion itself only needs the in-memory buffer.
+    let scanUrl = null;
+    if (imagekit.isConfigured()) {
+      const stored = await imagekit.storeImage(req.file);
+      await imagekit.registerUpload(stored);
+      scanUrl = stored.url;
+    }
+
     const response = await ai.models.generateContent({
       model: MODEL(),
       contents: [
         {
           role: 'user',
           parts: [
-            { inlineData: { mimeType: req.file.mimetype, data: data.toString('base64') } },
+            { inlineData: { mimeType: req.file.mimetype, data: req.file.buffer.toString('base64') } },
             {
               text:
                 'This is a scanned page of handwritten study notes. Transcribe it into clean digital notes. ' +
@@ -102,7 +109,7 @@ router.post(
           ? { svg: sanitizeSvg(parsed.diagramSvg), caption: parsed.diagramCaption || '' }
           : null,
       transcript: parsed.transcript || '',
-      scanUrl: `/uploads/${req.file.filename}`,
+      scanUrl,
     });
   })
 );

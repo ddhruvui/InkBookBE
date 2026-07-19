@@ -1,5 +1,4 @@
 require('dotenv').config();
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
@@ -11,7 +10,6 @@ app.use(cors());
 // The whole notebook is saved in one PUT /api/state call, so the JSON limit
 // must accommodate the full dataset, not a single note.
 app.use(express.json({ limit: '25mb' }));
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api', routes);
 
 app.use((err, req, res, next) => {

@@ -1,19 +1,9 @@
-const path = require('path');
-const crypto = require('crypto');
 const multer = require('multer');
 
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-
-const storage = multer.diskStorage({
-  destination: UPLOADS_DIR,
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase().slice(0, 10) || '.png';
-    cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`);
-  },
-});
-
+// Images are held in memory only (never written to server disk) and pushed
+// straight to ImageKit by the route handlers.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype && file.mimetype.startsWith('image/')) return cb(null, true);
@@ -21,4 +11,4 @@ const upload = multer({
   },
 });
 
-module.exports = { upload, UPLOADS_DIR };
+module.exports = { upload };
