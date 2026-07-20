@@ -34,11 +34,11 @@ function sanitizeSvg(svg) {
 const CONVERT_SCHEMA = {
   type: 'object',
   properties: {
-    title: { type: 'string', description: 'Short title for the note (3-6 words)' },
+    title: { type: 'string', description: 'Short title for the note (3-6 words), in the same language/script as the notes' },
     body: {
       type: 'string',
       description:
-        'The transcribed prose as clean HTML paragraphs (<p>...</p>). Fix obvious spelling slips. Use <b>/<em> sparingly where the writer emphasized.',
+        'The transcribed prose as clean HTML paragraphs (<p>...</p>), in the same language/script as the original handwriting — never translated. Fix obvious spelling slips. Use <b>/<em> sparingly where the writer emphasized.',
     },
     formula: {
       type: 'string',
@@ -79,6 +79,8 @@ router.post(
             {
               text:
                 'This is a scanned page of handwritten study notes. Transcribe it into clean digital notes. ' +
+                'IMPORTANT: Keep the EXACT language and script the writer used — do NOT translate. ' +
+                'If the notes are in Gujarati, output Gujarati; if mixed languages, keep the mix as written. ' +
                 'Read carefully — handwriting may be messy. If a diagram/sketch is present, redraw it as a clean vector SVG. ' +
                 'Return only the structured JSON.',
             },

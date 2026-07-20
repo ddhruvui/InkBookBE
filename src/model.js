@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const InkDocSchema = new mongoose.Schema(
   {
     _id: { type: String, required: true },
-    kind: { type: String, required: true, enum: ['subject', 'important-marks', 'image-index'], index: true },
+    kind: { type: String, required: true, enum: ['subject', 'important-marks', 'image-index', 'state-meta'], index: true },
     position: { type: Number },
   },
   { strict: false, timestamps: true }
