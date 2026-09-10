@@ -9,7 +9,7 @@ const { mongoUri } = require('../src/db');
 const V1_ID = '6a5b76919fa45333186663e2';
 
 (async () => {
-  await mongoose.connect(mongoUri());
+  await mongoose.connect(mongoUri(), { dbName: 'InkBook' });
   const col = mongoose.connection.db.collection('InkBook');
 
   const old = await col.findOne({ _id: new mongoose.Types.ObjectId(V1_ID) });

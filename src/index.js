@@ -30,7 +30,9 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5001;
 
 mongoose
-  .connect(mongoUri())
+  // dbName pins the database even when MONGO_URI has no path (Atlas URIs
+  // often omit it), so a bare URI can never silently point at `test`.
+  .connect(mongoUri(), { dbName: 'InkBook' })
   .then(() => {
     app.listen(PORT, () => {
       console.log(`InkBook API listening on port ${PORT}`);
