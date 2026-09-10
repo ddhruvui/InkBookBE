@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const routes = require('./routes');
+const { mongoUri } = require('./db');
 
 const app = express();
 
@@ -29,7 +30,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5001;
 
 mongoose
-  .connect(process.env.MONGO_URI)
+  .connect(mongoUri())
   .then(() => {
     app.listen(PORT, () => {
       console.log(`InkBook API listening on port ${PORT}`);
