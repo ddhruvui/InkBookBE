@@ -4,12 +4,14 @@
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const { mongoUri } = require('../src/db');
+const { mongoUri, dbName, assertNotProdLocally } = require('../src/db');
 
 const V1_ID = '6a5b76919fa45333186663e2';
 
 (async () => {
-  await mongoose.connect(mongoUri(), { dbName: 'InkBook' });
+  // Runs against MONGO_DB_NAME (test copy locally); never writes prod from here.
+  assertNotProdLocally();
+  await mongoose.connect(mongoUri(), { dbName: dbName() });
   const col = mongoose.connection.db.collection('InkBook');
 
   const old = await col.findOne({ _id: new mongoose.Types.ObjectId(V1_ID) });

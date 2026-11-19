@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const routes = require('./routes');
-const { mongoUri } = require('./db');
+const { mongoUri, dbName, assertNotProdLocally } = require('./db');
 
 const app = express();
 
@@ -29,13 +29,29 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5001;
 
+// Local safety net: only the Vercel deployment may open the prod database.
+// A local server always runs on the test copy (default InkBookTest).
+try {
+  assertNotProdLocally();
+} catch (err) {
+  console.error(err.message);
+  process.exit(1);
+}
+
 mongoose
-  // dbName pins the database even when MONGO_URI has no path (Atlas URIs
-  // often omit it), so a bare URI can never silently point at `test`.
-  .connect(mongoUri(), { dbName: 'InkBook' })
+  // dbName pins the database even when MONGO_URI has a path (the option wins
+  // over the URI), so a local URI copied from prod can't reach prod either.
+  .connect(mongoUri(), { dbName: dbName() })
   .then(() => {
+    // Belt and braces: check the database the driver actually opened.
+    try {
+      assertNotProdLocally(mongoose.connection.name);
+    } catch (err) {
+      console.error(err.message);
+      process.exit(1);
+    }
     app.listen(PORT, () => {
-      console.log(`InkBook API listening on port ${PORT}`);
+      console.log(`InkBook API listening on port ${PORT} · database "${dbName()}"`);
     });
   })
   .catch((err) => {
