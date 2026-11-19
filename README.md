@@ -57,7 +57,7 @@ Errors are JSON `{ error }`. JSON bodies are capped at 25 MB because each save s
 
 ## Scripts
 
-Both scripts read `server/.env`.
+All scripts read `server/.env`.
 
 **Refresh the test database from prod** (reads prod, never writes to it):
 
@@ -76,6 +76,14 @@ node scripts/copy-db.js --from InkBook --to InkBookTest
 It copies `InkBook` → `InkBookTest`. Without `--replace` it won't touch a non-empty target.
 It refuses to write into `InkBook` or to copy a database onto itself, and skips the ImageKit
 `image-index` doc so a local save can't delete prod images.
+
+**Reset the test database to demo data** — wipes the database `MONGO_DB_NAME` points to
+(default `InkBookTest`) and seeds a small notebook that uses every block type. Refuses the prod
+database, and refuses a non-empty target without `--replace`:
+
+```bash
+node scripts/seed-test-db.js --replace
+```
 
 **One-time v1 → v2 migration** — converts the old single-document notebook into a v2 subject
 (one "Notes" chapter, one text block per note) in the database `MONGO_DB_NAME` points to.
