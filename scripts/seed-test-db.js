@@ -20,12 +20,14 @@ const block = (type, payload) => ({ id: uuid(), type, payload });
 const text = (html) => block('text', { html });
 const topic = (name, days, blocks) => ({ id: uuid(), name, createdAt: ago(days + 3), updatedAt: ago(days), blocks });
 const chapter = (name, topics) => ({ id: uuid(), name, topics: topics.map((t, i) => ({ ...t, position: i })) });
-const subject = (name, color, chapters) => ({
+// `topics` sit directly in the subject, outside any chapter.
+const subject = (name, color, chapters, topics = []) => ({
   _id: uuid(),
   kind: 'subject',
   name,
   color,
   chapters: chapters.map((c, i) => ({ ...c, position: i })),
+  topics: topics.map((t, i) => ({ ...t, position: i })),
 });
 
 const HL = "<span style='background:#f5d98f;padding:0 3px;border-radius:3px'>";
@@ -148,8 +150,15 @@ function build() {
     text('Light-dependent reactions happen in the <b>thylakoid</b>; the Calvin cycle happens in the <b>stroma</b>.'),
   ]);
 
+  const formulaSheet = topic('Formula Sheet', 4, [
+    text('Quick reference for the whole course — kept outside any chapter.'),
+    block('math', { text: 'F = ma' }),
+    block('math', { text: 'v = f\\lambda' }),
+    block('todo', { text: 'Add the energy equations', done: false }),
+  ]);
+
   const subjects = [
-    subject('Physics', '#b8552e', [chapter('Mechanics', [newton, kinematics]), chapter('Waves', [waves])]),
+    subject('Physics', '#b8552e', [chapter('Mechanics', [newton, kinematics]), chapter('Waves', [waves])], [formulaSheet]),
     subject('Computer Science', '#5a6aa8', [
       chapter('Algorithms', [binarySearch, bigO]),
       chapter('Data Structures', [hashMaps]),
